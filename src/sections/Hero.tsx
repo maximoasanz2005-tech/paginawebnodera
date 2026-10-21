@@ -46,7 +46,7 @@ export function Hero() {
 
         {/* Detalle visual abstracto — composición minimalista con grid */}
         <div
-          className="reveal"
+          className="reveal hero-visual"
           aria-hidden="true"
           style={{
             marginTop: "var(--sp-10)",

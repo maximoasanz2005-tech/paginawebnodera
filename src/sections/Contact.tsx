@@ -123,6 +123,7 @@ export function Contact() {
             gridTemplateColumns: "1fr",
             gap: "var(--sp-6)",
           }}
+          className="contact-grid"
         >
           <div className="reveal">
             <span className="eyebrow">Contacto</span>

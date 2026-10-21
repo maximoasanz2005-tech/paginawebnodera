@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from "react";
+import { useId, useRef, useState, useEffect } from "react";
 import { Icon } from "./Icon";
 
 interface AccordionItemProps {
@@ -10,16 +10,26 @@ interface AccordionItemProps {
 
 export function AccordionItem({ question, answer, pending, defaultOpen }: AccordionItemProps) {
   const [open, setOpen] = useState(defaultOpen ?? false);
+  const [maxHeight, setMaxHeight] = useState<number | string>(defaultOpen ? "none" : 0);
   const panelId = useId();
   const btnId = useId();
   const contentRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    if (open) {
+      setMaxHeight(el.scrollHeight);
+      const t = setTimeout(() => setMaxHeight("none"), 520);
+      return () => clearTimeout(t);
+    } else {
+      setMaxHeight(el.scrollHeight);
+      requestAnimationFrame(() => setMaxHeight(0));
+    }
+  }, [open]);
+
   return (
-    <div
-      style={{
-        borderBottom: "1px solid var(--c-line)",
-      }}
-    >
+    <div style={{ borderBottom: "1px solid var(--c-line)" }}>
       <h3 style={{ margin: 0, fontSize: "var(--fs-lg)" }}>
         <button
           id={btnId}
@@ -62,7 +72,7 @@ export function AccordionItem({ question, answer, pending, defaultOpen }: Accord
         aria-labelledby={btnId}
         style={{
           overflow: "hidden",
-          maxHeight: open ? (contentRef.current?.scrollHeight ?? 500) : 0,
+          maxHeight: typeof maxHeight === "number" ? `${maxHeight}px` : maxHeight,
           transition: "max-height var(--transition-slow) ease",
         }}
       >

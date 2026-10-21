@@ -317,6 +317,47 @@ video {
   border-color: rgba(255, 255, 255, 0.5);
 }
 
+/* Header responsive */
+@media (max-width: 860px) {
+  .nav-desktop {
+    display: none !important;
+  }
+  .nav-toggle {
+    display: inline-flex !important;
+  }
+}
+
+/* Intro keyframes */
+@keyframes introFadeIn {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Contact: dos columnas en desktop */
+@media (min-width: 900px) {
+  .contact-grid {
+    grid-template-columns: 1fr 1.2fr !important;
+    align-items: start;
+  }
+}
+
+/* Footer: tres columnas en desktop */
+@media (min-width: 768px) {
+  .footer-grid {
+    grid-template-columns: 2fr 1fr 1.2fr !important;
+    gap: var(--sp-6) !important;
+  }
+}
+
+/* Hero: altura responsiva del detalle visual */
+@media (max-width: 640px) {
+  .hero-visual {
+    height: 200px !important;
+  }
+}
+
 /* Animaciones de entrada al hacer scroll */
 .reveal {
   opacity: 0;

@@ -27,6 +27,7 @@ export function Footer() {
             gridTemplateColumns: "1fr",
             gap: "var(--sp-5)",
           }}
+          className="footer-grid"
         >
           <div style={{ maxWidth: "40ch" }}>
             <Logo variant="light" />

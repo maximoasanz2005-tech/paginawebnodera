@@ -14,10 +14,11 @@
  * (status = 'pending'), pero el email no se envía. El propietario puede revisar
  * las consultas desde el panel de Supabase.
  *
- * Para activar el envío de emails:
- * 1. Crear una cuenta en Resend.
- * 2. Verificar un dominio o usar el remitente de prueba onboarding@resend.dev.
- * 3. Configurar los secrets en Supabase: RESEND_API_KEY, CONTACT_RECIPIENT, CONTACT_FROM_EMAIL.
+ * Protección anti-abuso:
+ * - Honeypot (campo website oculto).
+ * - Rate limiting: máximo 3 consultas por email en 1 hora, consultando la base de datos.
+ * - Rate limiting por IP: máximo 5 consultas por IP en 1 hora.
+ * - Sanitización de todos los campos contra inyección de cabeceras.
  */
 
 const corsHeaders = {
@@ -33,7 +34,6 @@ interface ContactPayload {
   service?: string;
   message: string;
   consent: boolean;
-  // Honeypot anti-spam — debe estar vacío
   website?: string;
 }
 
@@ -42,8 +42,13 @@ function validateEmail(email: string): boolean {
 }
 
 function sanitize(text: string): string {
-  // Eliminar caracteres de control y saltos de línea que podrían inyectar cabeceras
   return text.replace(/[\r\n]/g, " ").trim().slice(0, 5000);
+}
+
+function getClientIP(req: Request): string {
+  const xff = req.headers.get("x-forwarded-for");
+  if (xff) return xff.split(",")[0].trim();
+  return "unknown";
 }
 
 Deno.serve(async (req: Request) => {
@@ -63,7 +68,6 @@ Deno.serve(async (req: Request) => {
 
     // Honeypot: si el campo website tiene contenido, es un bot
     if (body.website && body.website.trim().length > 0) {
-      // Responder OK para no delatar el honeypot
       return new Response(
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -101,8 +105,9 @@ Deno.serve(async (req: Request) => {
     const company = body.company ? sanitize(body.company) : null;
     const service = body.service ? sanitize(body.service) : null;
     const message = sanitize(body.message);
+    const clientIP = sanitize(getClientIP(req));
 
-    // Guardar en la base de datos usando service role
+    // Conexión a Supabase con service role
     const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
@@ -113,15 +118,43 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const adminHeaders = {
+      "Content-Type": "application/json",
+      "apikey": serviceRoleKey,
+      "Authorization": `Bearer ${serviceRoleKey}`,
+    };
+
+    // Rate limiting: verificar consultas recientes por email (máx 3 por hora)
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+    const emailCheckUrl = `${supabaseUrl}/rest/v1/contact_submissions?select=id&email=eq.${encodeURIComponent(email)}&created_at=gte.${oneHourAgo}`;
+    const emailCheckRes = await fetch(emailCheckUrl, { headers: adminHeaders });
+    if (emailCheckRes.ok) {
+      const recentByEmail = await emailCheckRes.json();
+      if (Array.isArray(recentByEmail) && recentByEmail.length >= 3) {
+        return new Response(
+          JSON.stringify({ error: "Demasiadas consultas desde este correo. Esperá un rato e intentá de nuevo." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    // Rate limiting por IP (máx 5 por hora)
+    const ipCheckUrl = `${supabaseUrl}/rest/v1/contact_submissions?select=id&metadata->>ip=eq.${encodeURIComponent(clientIP)}&created_at=gte.${oneHourAgo}`;
+    const ipCheckRes = await fetch(ipCheckUrl, { headers: adminHeaders });
+    if (ipCheckRes.ok) {
+      const recentByIP = await ipCheckRes.json();
+      if (Array.isArray(recentByIP) && recentByIP.length >= 5) {
+        return new Response(
+          JSON.stringify({ error: "Demasiadas consultas desde esta dirección. Esperá un rato e intentá de nuevo." }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
     // Insertar la consulta en la base de datos
     const insertRes = await fetch(`${supabaseUrl}/rest/v1/contact_submissions`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "apikey": serviceRoleKey,
-        "Authorization": `Bearer ${serviceRoleKey}`,
-        "Prefer": "return=representation",
-      },
+      headers: { ...adminHeaders, "Prefer": "return=representation" },
       body: JSON.stringify({
         name,
         email,
@@ -130,6 +163,7 @@ Deno.serve(async (req: Request) => {
         message,
         consent: true,
         status: "pending",
+        metadata: { ip: clientIP },
       }),
     });
 
@@ -142,13 +176,15 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const insertedRows = await insertRes.json();
+    const submissionId = insertedRows[0]?.id;
+
     // Intentar enviar email por Resend si está configurado
     const resendApiKey = Deno.env.get("RESEND_API_KEY");
     const recipient = Deno.env.get("CONTACT_RECIPIENT") ?? "noderaservicios@gmail.com";
     const fromEmail = Deno.env.get("CONTACT_FROM_EMAIL");
 
     let emailSent = false;
-    let emailError: string | null = null;
 
     if (resendApiKey && fromEmail) {
       try {
@@ -182,29 +218,24 @@ Deno.serve(async (req: Request) => {
         if (resendRes.ok) {
           emailSent = true;
           // Actualizar estado a 'sent'
-          await fetch(`${supabaseUrl}/rest/v1/contact_submissions?id=eq.${(await insertRes.json())[0]?.id}`, {
-            method: "PATCH",
-            headers: {
-              "Content-Type": "application/json",
-              "apikey": serviceRoleKey,
-              "Authorization": `Bearer ${serviceRoleKey}`,
-            },
-            body: JSON.stringify({ status: "sent" }),
-          });
+          if (submissionId) {
+            await fetch(`${supabaseUrl}/rest/v1/contact_submissions?id=eq.${submissionId}`, {
+              method: "PATCH",
+              headers: adminHeaders,
+              body: JSON.stringify({ status: "sent" }),
+            });
+          }
         } else {
           const errBody = await resendRes.text();
-          emailError = errBody;
           console.error("Error enviando email:", errBody);
         }
       } catch (err) {
-        emailError = String(err);
         console.error("Excepción enviando email:", err);
       }
     } else {
-      emailError = "Resend no configurado";
+      console.log("Resend no configurado — consulta guardada sin envío de email");
     }
 
-    // Responder éxito al frontend si la consulta se guardó, aunque el email no se haya enviado
     return new Response(
       JSON.stringify({
         success: true,
