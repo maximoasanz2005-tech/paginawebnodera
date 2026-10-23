@@ -25,14 +25,14 @@ export const site = {
 export const contact = {
   email: "noderaservicios@gmail.com",
   /** Número de teléfono centralizado. Verificá el prefijo antes de publicar. */
-  phone: "+513416135414",
+  phone: "+543416135414",
   /** Texto legible del teléfono para mostrar en la interfaz. */
-  phoneDisplay: "+51 341 613 5414",
+  phoneDisplay: "+54 341 613 5414",
   /** Enlace de WhatsApp. Solo activar si se verifica que el número tiene WhatsApp. */
-  whatsappUrl: "",
+  whatsappUrl: "https://wa.me/543416135414",
   /** Redes sociales. Dejá el string vacío si la red no está confirmada. */
   social: {
-    instagram: "",
+    instagram: "@noderasoluciones",
     linkedin: "",
     facebook: "",
   },
@@ -82,9 +82,9 @@ export const services: Service[] = [
     description:
       "Sitios institucionales y páginas comerciales diseñados desde cero, adaptados a la estructura y los objetivos de cada empresa.",
     features: [
-      "Sitios institucionales y páginas comerciales",
+      "Sitios corporativos, landing pages y tiendas online",
       "Diseño responsive para todos los dispositivos",
-      "Estructura adaptada a cada empresa",
+      "Estructura adaptada a cada negocio",
       "Experiencia de usuario y claridad de navegación",
     ],
     cta: { label: "Consultar por este servicio", href: "#contacto" },
@@ -94,9 +94,9 @@ export const services: Service[] = [
     icon: "palette",
     title: "Imagen de marca",
     description:
-      "Coherencia visual y comunicación alineada con la personalidad de tu negocio, aplicada de forma consistente en todos los puntos de contacto digital.",
+      "Coherencia visual y comunicación alineada con la personalidad de tu negocio, apreciando la identidad de tu marca.",
     features: [
-      "Coherencia visual en todos los canales",
+      "Asesoría visual en todos los canales",
       "Presentación digital de la empresa",
       "Aplicación consistente de la identidad visual",
       "Comunicación alineada con la personalidad del negocio",
@@ -108,11 +108,11 @@ export const services: Service[] = [
     icon: "trending-up",
     title: "Marketing digital",
     description:
-      "Presencia y comunicación online con estrategia de contenidos y acciones de visibilidad adecuadas a los servicios que ofrecés.",
+      "Presencia y comunicación online con estrategia de contenidos y acciones de visibilidad adecuadas a tu público objetivo.",
     features: [
       "Presencia y comunicación online",
       "Estrategia de contenidos y canales digitales",
-      "Acciones de visibilidad adaptadas a tu negocio",
+      "Acciones de visibilidad adaptadas a tus clientes",
       "Acompañamiento según los objetivos del proyecto",
     ],
     cta: { label: "Consultar por este servicio", href: "#contacto" },

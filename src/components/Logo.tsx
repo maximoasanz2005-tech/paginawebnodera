@@ -25,7 +25,7 @@ export function Logo({ variant = "dark", className = "" }: LogoProps) {
       width={160}
       height={36}
       className={className}
-      style={{ display: "block", height: "1.75rem", width: "auto" }}
+      style={{ display: "block", height: "5rem", width: "auto" }}
     />
   );
 }
